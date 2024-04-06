@@ -3,6 +3,8 @@
         "types.h": "c",
         "stdlib.h": "c",
         "netdb.h": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "select.h": "c",
+        "dirent.h": "c"
     }
 }

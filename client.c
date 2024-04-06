@@ -53,6 +53,11 @@ int main(int argc, char *argv[]){
         }
         if(FD_ISSET(sock, &readIn)){
             ssize_t bytesIn = read(sock, &buf, 256);
+            if(bytesIn==0){
+                write(2, "Host disconnected, exiting\n",28);
+                close(sock);
+                exit(1);
+            }
             write(1, &buf, bytesIn);
         }
     }
