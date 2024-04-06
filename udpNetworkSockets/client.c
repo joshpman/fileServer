@@ -10,6 +10,10 @@
 #include <stdlib.h>
 #include <netdb.h>
 int main(int argc, char *argv[]){
+    if(argc<2){
+        write(2, "Not enough arguments\n", 22);
+        exit(-1);
+    }
     struct sockaddr_in dest, mine;
     struct{
         uint16_t head;

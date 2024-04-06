@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "types.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "netdb.h": "c",
+        "in.h": "c"
     }
 }
