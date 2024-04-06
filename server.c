@@ -12,11 +12,19 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <signal.h>
 char password[] = {"password"};
 char listCmd[] = {"list"};
 char *listArgs[] = {"ls", "-la", "./files", NULL};
 char getCmd[] = {"get"};
 char uploadCmd[] = {"put"};
+char killParent[] = {"q!"};
+volatile sig_atomic_t running;
+static int listener;
+void closeOut(){
+    close(listener);
+    exit(0);
+}
 void writeFile(int socket, int fileFD){
     char buf[1024];
     while(1){
@@ -89,8 +97,10 @@ struct sockaddr_in *s_in; char *s1, *s2;
     printf("(%s, %d)\n", inet_ntoa(s_in->sin_addr) , s_in->sin_port);
 }
 int main(){
+    running = 1;
+    signal(SIGUSR1, closeOut);
     int enteredPassword = 0;
-    int listener, conn, length;
+    int conn, length;
     struct sockaddr_in s1, s2;
     listener = socket(AF_INET, SOCK_STREAM, 0);
     memset(&s1, 0, sizeof(s1));
@@ -107,7 +117,7 @@ int main(){
     if(stat("./files", &st)==-1){
         mkdir("./files", 0700);
     }
-    while(1){
+    while(running==1){
         memset(buf, 0, 256);
         listen(listener, 1);
         length = sizeof(s2);
@@ -162,8 +172,7 @@ int main(){
                             write(1, "Client wrote list\n", 19);
                             listFiles(conn);
                             write(conn, "\n", 2);
-                        }
-                         if((strstr(buf, getCmd)!=0)&& bytesIn>4){
+                        }else if((strstr(buf, getCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote get\n", 18);
                             char filename[bytesIn-4 + strlen("./files/") + 1];
                             strcpy(filename, "./files/");
@@ -177,14 +186,20 @@ int main(){
                                 sleep(1);
                                 writeFile(conn, outputFD);
                             }
-                        }
-                         if((strstr(buf, uploadCmd)!=0)&& bytesIn>4){
+                        }else if((strstr(buf, uploadCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote put\n", 18);
                             char output[bytesIn-4 + strlen("./files/") + 1];
                             strcpy(output, "./files/");
                             strcat(output, &buf[4]);
                             int outputFD = open(output, O_CREAT | O_RDWR | O_TRUNC, 0644);
                             readInFile(conn, outputFD);
+                        }else if((strstr(buf, killParent)!=0)&& bytesIn>2){
+                            write(1, "Closing parent process and current socket\n", 43);
+                            close(conn);
+                            kill(getppid(), SIGUSR1);
+                            exit(0);
+                        }else{
+                            write(conn, "Unknown command\n", 17);
                         }
                     }
                 }
@@ -193,4 +208,6 @@ int main(){
             close(conn);
         }
     }
+    close(listener);
+    exit(0);
 }

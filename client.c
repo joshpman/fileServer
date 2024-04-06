@@ -11,6 +11,7 @@
 #include <netdb.h>
 #include <fcntl.h>
 char listCmd[] = {"list"};
+char killParent[] = {"q!"};
 char getCmd[] = {"get"};
 char uploadCmd[] = {"put"};
 char found[] = {"Found\n"};
@@ -128,6 +129,11 @@ int main(int argc, char *argv[]){
                         sleep(1);
                         sendFile(sock, fd);
                     }
+                }else if((strstr(buf, killParent)!=0)&& bytesIn>2){
+                    write(1, "Closing TCP Server and this client process\n",44);
+                    write(sock, &buf, bytesIn);
+                    close(sock);
+                    exit(0);
                 }else{
                     write(sock, &buf, bytesIn);
                     memset(buf, 0, 256);
