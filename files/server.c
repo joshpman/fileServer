@@ -17,21 +17,6 @@ char listCmd[] = {"list"};
 char *listArgs[] = {"ls", "-la", "./files", NULL};
 char getCmd[] = {"get"};
 char uploadCmd[] = {"put"};
-void writeFile(int socket, int fileFD){
-    char buf[1024];
-    while(1){
-        memset(buf, 0, 1024);
-        ssize_t bytesIn = read(fileFD, buf, 1024);
-        if(bytesIn==0){
-            close(fileFD);
-            write(1, "Finished writing file, closing socket\n", 39);
-            close(socket);
-            exit(0);
-        }else{
-            write(socket, buf, bytesIn);
-        }
-    }
-}
 void readInFile(int fd, int outputFD){
     char buf[1024];
     while(1){
@@ -165,21 +150,10 @@ int main(){
                         }
                          if((strstr(buf, getCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote get\n", 18);
-                            char filename[bytesIn-4 + strlen("./files/") + 1];
-                            strcpy(filename, "./files/");
-                            strcat(filename, &buf[4]);
-                            printf("Filename is %s\n", filename);
-                            int outputFD = open(filename, O_RDWR, 0644);
-                            if(outputFD<0){
-                                write(conn, "File DNE\n", 10);
-                            }else{
-                                write(conn, "Found\n", 7);
-                                sleep(1);
-                                writeFile(conn, outputFD);
-                            }
                         }
                          if((strstr(buf, uploadCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote put\n", 18);
+                            printf("Inputted %ld bytes\n", bytesIn);
                             char output[bytesIn-4 + strlen("./files/") + 1];
                             strcpy(output, "./files/");
                             strcat(output, &buf[4]);

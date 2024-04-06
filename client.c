@@ -13,6 +13,31 @@
 char listCmd[] = {"list"};
 char getCmd[] = {"get"};
 char uploadCmd[] = {"put"};
+char found[] = {"Found\n"};
+void readInFile(int socket, char* filename){
+    char verifyFind();
+    char buf[1024];
+    char finder[7];
+    memset(finder, 0, 7);
+    read(socket, finder, 7);
+    if(strcmp(finder, found)==0){
+        int outputFD = open(filename, O_CREAT | O_RDWR | O_TRUNC, 0644);
+        while(1){
+            memset(buf, 0, 1024);
+            ssize_t bytesIn = read(socket, buf, 1024);
+            if(bytesIn==0){
+                close(outputFD);
+                write(1, "Finished writing file, closing socket\n", 39);
+                close(socket);
+                exit(0);
+            }else{
+                write(outputFD, buf, bytesIn);
+            }
+        }
+    }else{
+        write(2, "Invalid file name!\n", 20);
+    }
+}
 void sendFile(int socket, int fileFD){
     char buf[1024];
     while(1){
@@ -83,8 +108,12 @@ int main(int argc, char *argv[]){
                     memset(buf, 0, 256);
                 }else if((strstr(buf, getCmd)!=0)&& bytesIn>3){
                     write(1, "Client wrote get\n", 18);
+                    buf[bytesIn-1] = '\0';
+                    char filename[bytesIn-3];
+                    strcpy(filename, &buf[4]);
+                    printf("Filename is %s\n", filename);
                     write(sock, &buf, bytesIn);
-                    memset(buf, 0, 256);
+                    readInFile(sock, filename);
                 }else if((strstr(buf, uploadCmd)!=0)&& bytesIn>3){
                     write(1, "Client wrote put\n", 18);
                     char filename[bytesIn-3];
