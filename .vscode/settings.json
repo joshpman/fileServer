@@ -5,6 +5,7 @@
         "netdb.h": "c",
         "in.h": "c",
         "select.h": "c",
-        "dirent.h": "c"
+        "dirent.h": "c",
+        "socket.h": "c"
     }
 }

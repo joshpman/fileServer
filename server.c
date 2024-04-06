@@ -10,11 +10,31 @@
 #include <sys/select.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 char password[] = {"password"};
 char listCmd[] = {"list"};
 char *listArgs[] = {"ls", "-la", "./files", NULL};
 char getCmd[] = {"get"};
 char uploadCmd[] = {"put"};
+void readInFile(int fd, int outputFD){
+    char buf[1024];
+    while(1){
+        fd_set readIn;
+        FD_ZERO(&readIn);
+        FD_SET(fd, &readIn);
+        select(fd+1, &readIn, 0,0,0);
+        memset(buf, 0, 1024);
+        if(FD_ISSET(fd, &readIn)){
+            ssize_t bytesIn = read(fd, buf, 1024);
+            if(bytesIn==0){
+                close(outputFD);
+                close(fd);
+                exit(0);
+            }
+            write(outputFD, buf, bytesIn);
+        }
+    }
+}
 void listFiles(int writeFD){
     int outputFD[2];
     pipe(outputFD);
@@ -131,6 +151,12 @@ int main(){
                         }
                          if((strstr(buf, uploadCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote put\n", 18);
+                            printf("Inputted %ld bytes\n", bytesIn);
+                            char output[bytesIn-4 + strlen("./files") + 1];
+                            strcpy(output, "./files");
+                            strcpy(output, &buf[5]);
+                            int outputFD = open(output, O_CREAT | O_RDWR | O_TRUNC, 0644);
+                            readInFile(conn, outputFD);
                         }
                     }
                 }
