@@ -9,7 +9,6 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <netdb.h>
-char msg[] = {"the quick brown fox jumps over the lazy dog"};
 int main(int argc, char *argv[]){
     if(argc<3){
         write(2, "Not enough arguments\n", 22);
@@ -31,14 +30,32 @@ int main(int argc, char *argv[]){
         exit(-1);
     }
     printf("Socket is now connected\n");
-    left = sizeof(msg); put = 0;
-    while(left>0){
-        if((num-=write(sock, msg + put, left))<0){
-            perror("inet_wstream: write");
+    fd_set readIn;
+    while(1){
+        char buf[256];
+        memset(buf, 0, 256);
+        FD_ZERO(&readIn);
+        FD_SET(0, &readIn);
+        FD_SET(sock, &readIn);
+        int nfds = sock + 1; 
+        struct timeval timeout;
+        timeout.tv_sec = 25;
+        int selectVal = select(nfds, &readIn, 0, 0, &timeout);
+        if(selectVal == 0){
+            write(2, "Session timeout\n", 17);
+            close(sock);
             exit(1);
-        }else{
-            left -= num;
-            put += num;
+        }
+        if(FD_ISSET(0, &readIn)){
+            ssize_t bytesIn = read(0, &buf, 256);
+            write(sock, &buf, bytesIn);
+            memset(buf, 0, 256);
+        }
+        if(FD_ISSET(sock, &readIn)){
+            ssize_t bytesIn = read(sock, &buf, 256);
+            write(1, &buf, bytesIn);
         }
     }
+    close(sock);
+    exit(0);
 }
