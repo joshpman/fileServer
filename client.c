@@ -65,6 +65,15 @@ int main(int argc, char *argv[]){
             close(sock);
             exit(1);
         }
+        if(FD_ISSET(sock, &readIn)){
+            ssize_t bytesIn = read(sock, &buf, 256);
+            if(bytesIn==0){
+                write(2, "Host disconnected, exiting\n",28);
+                close(sock);
+                exit(1);
+            }
+            write(1, &buf, bytesIn);
+        }
         if(FD_ISSET(0, &readIn)){
             ssize_t bytesIn = read(0, &buf, 256);
             if(bytesIn>1){
@@ -79,13 +88,15 @@ int main(int argc, char *argv[]){
                 }else if((strstr(buf, uploadCmd)!=0)&& bytesIn>3){
                     write(1, "Client wrote put\n", 18);
                     char filename[bytesIn-3];
+                    buf[bytesIn-1] = '\0';
                     strcpy(filename, &buf[4]);
-                    int fd = open(filename, O_RDONLY, 0644);
+                    int fd = open(filename, O_RDONLY);
                     if(fd<0){
                         printf("Filename is %s\n", filename);
                         printf("Failed to open fd\n");
                     }else{
                         write(sock, &buf, bytesIn);
+                        sleep(1);
                         sendFile(sock, fd);
                     }
                 }else{
@@ -94,16 +105,7 @@ int main(int argc, char *argv[]){
                 }
                 
             }
-        }
-        if(FD_ISSET(sock, &readIn)){
-            ssize_t bytesIn = read(sock, &buf, 256);
-            if(bytesIn==0){
-                write(2, "Host disconnected, exiting\n",28);
-                close(sock);
-                exit(1);
-            }
-            write(1, &buf, bytesIn);
-        }
+        }  
     }
     close(sock);
     exit(0);

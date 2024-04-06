@@ -11,6 +11,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <limits.h>
 char password[] = {"password"};
 char listCmd[] = {"list"};
 char *listArgs[] = {"ls", "-la", "./files", NULL};
@@ -27,6 +28,7 @@ void readInFile(int fd, int outputFD){
         if(FD_ISSET(fd, &readIn)){
             ssize_t bytesIn = read(fd, buf, 1024);
             if(bytesIn==0){
+                write(1, "Finished reading in file, closing socket\n", 42);
                 close(outputFD);
                 close(fd);
                 exit(0);
@@ -152,9 +154,9 @@ int main(){
                          if((strstr(buf, uploadCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote put\n", 18);
                             printf("Inputted %ld bytes\n", bytesIn);
-                            char output[bytesIn-4 + strlen("./files") + 1];
-                            strcpy(output, "./files");
-                            strcpy(output, &buf[5]);
+                            char output[bytesIn-4 + strlen("./files/") + 1];
+                            strcpy(output, "./files/");
+                            strcat(output, &buf[4]);
                             int outputFD = open(output, O_CREAT | O_RDWR | O_TRUNC, 0644);
                             readInFile(conn, outputFD);
                         }

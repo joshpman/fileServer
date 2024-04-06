@@ -6,6 +6,7 @@
         "in.h": "c",
         "select.h": "c",
         "dirent.h": "c",
-        "socket.h": "c"
+        "socket.h": "c",
+        "stdio.h": "c"
     }
 }
