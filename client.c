@@ -1,16 +1,16 @@
-#include <sys/socket.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/wait.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <stdlib.h>
-#include <netdb.h>
-#include <fcntl.h>
 char listCmd[] = {"list"};
 char serverConfirm[] = {"confirmed"};
 char killParent[] = {"q!"};

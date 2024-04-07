@@ -1,19 +1,19 @@
-#include <sys/socket.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
-#include <sys/un.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <stdlib.h>
-#include <sys/select.h>
-#include <sys/wait.h>
-#include <dirent.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
+#include <dirent.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <sys/types.h>
 char password[] = {"password"};
 char listCmd[] = {"list"};
 char *listArgs[] = {"ls", "-la", "./files", NULL};
