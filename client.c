@@ -111,6 +111,10 @@ int main(int argc, char *argv[]){
         write(2, "Not enough arguments\n", 22);
         exit(-1);
     }
+    int selectVal = 0;
+    struct timeval timeout = {0,0};
+    int nfds = 0;
+    fd_set readIn;
     //Setting up socket to connect to server with with IPv4 Address Format and Byte Stream connection
     char *remhost; unsigned short remport;
     int sock;
@@ -129,18 +133,15 @@ int main(int argc, char *argv[]){
     }
     write(1, "Socket is now connected\n", 25);
     fflush(stdout);
-    fd_set readIn;
-
     while(1){
         char buf[256];
         memset(buf, 0, 256);
         FD_ZERO(&readIn);
         FD_SET(0, &readIn);
         FD_SET(sock, &readIn);
-        int nfds = sock + 1; 
-        struct timeval timeout;
+        nfds = sock + 1; 
         timeout.tv_sec = 60;
-        int selectVal = select(nfds, &readIn, 0, 0, &timeout);
+        selectVal = select(nfds, &readIn, 0, 0, &timeout);
         if(selectVal == 0){
             write(2, "Session timeout\n", 17);
             close(sock);
