@@ -32,7 +32,6 @@ int getFileSize(char *filename){
     int outputPipe[2];
     pipe(outputPipe);
     int preserveStdout = dup(1);
-    printf("Strlen for filename is %ld\n", strlen(filename));
     char *listArgs[] = {"wc", "-c", filename, NULL};
     //Fork into child to exec and pipe the result of wc -c
     if(fork()==0){
@@ -49,7 +48,6 @@ int getFileSize(char *filename){
     //Null terminator the buffer before wc states the filename so we can just read the char count
     buf[bytesIn-strlen(filename) -1] = '\0';
     int file=strtol(buf, 0, 10);
-    printf("filesize is %d\n", file);
     close(outputPipe[0]);
     return file;
 }
@@ -58,7 +56,7 @@ void awaitEcho(int clientFD, int fileSize){
     char buf[64];
     while(1){
         memset(buf, 0, 64);
-        ssize_t bytesIn = read(clientFD, buf, 64);
+        read(clientFD, buf, 64);
         printf("client echo'd %s\n", buf);
         int intVal = strtol(buf, 0, 0);
         if(intVal == fileSize){
@@ -298,9 +296,11 @@ int main(){
                 }
                 
             }
+            //Closing accepted client FD in listener so we can accept more clients-- Accept only has a 1 spot queue so this is needed
             close(conn);
         }
     }
+    //Program should never get here as its killed by a client command but if it does somehow this is just to cleanup listening socket + close out nicely
     close(listener);
     exit(0);
 }
