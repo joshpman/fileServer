@@ -54,29 +54,6 @@ int getDigits(int number){
     if (number < 10000000) return 7;
     return 0;
 }
-//Execs wc -c on the designated file to figure out length to send to server
-int getFileSize(char *filename){
-    int outputPipe[2];
-    pipe(outputPipe);
-    int preserveStdout = dup(1);
-    char *listArgs[] = {"wc", "-c", filename, NULL};
-    if(fork()==0){
-        close(outputPipe[0]);
-        dup2(outputPipe[1], 1);
-        execvp("wc", listArgs);
-    }
-    close(outputPipe[1]);
-    dup2(preserveStdout, 1);
-    wait(NULL);
-    char buf[64];
-    memset(buf, 0, 64);
-    ssize_t bytesIn = read(outputPipe[0], buf, 64);
-    //Null terminator the buffer before wc states the filename so we can just read the char count
-    buf[bytesIn-strlen(filename) -1] = '\0';
-    int file=strtol(buf, 0, 10);
-    close(outputPipe[0]);
-    return file;
-}
 //Readings in file from Server
 void readInFile(int socket, char* filename){
     char buf[1024];
@@ -201,8 +178,9 @@ int main(int argc, char *argv[]){
                     char filename[bytesIn-3];
                     buf[bytesIn-1] = '\0';
                     strcpy(filename, &buf[4]);
-                    int fileSize = getFileSize(filename);
                     int fd = open(filename, O_RDONLY);
+                    int fileSize = lseek(fd, 0, SEEK_END);
+                    lseek(fd, 0, SEEK_SET);
                     if(fd<0){
                         write(2, "Failed to open fd\n", 19);
                     }else{

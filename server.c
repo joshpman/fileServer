@@ -27,30 +27,6 @@ void closeOut(){
     close(listener);
     exit(0);
 }
-//Execs wc -c on the designated file to figure out length to send to client
-int getFileSize(char *filename){
-    int outputPipe[2];
-    pipe(outputPipe);
-    int preserveStdout = dup(1);
-    char *listArgs[] = {"wc", "-c", filename, NULL};
-    //Fork into child to exec and pipe the result of wc -c
-    if(fork()==0){
-        close(outputPipe[0]);
-        dup2(outputPipe[1], 1);
-        execvp("wc", listArgs);
-    }
-    close(outputPipe[1]);
-    dup2(preserveStdout, 1);
-    wait(NULL);
-    char buf[64];
-    memset(buf, 0, 64);
-    ssize_t bytesIn = read(outputPipe[0], buf, 64);
-    //Null terminator the buffer before wc states the filename so we can just read the char count
-    buf[bytesIn-strlen(filename) -1] = '\0';
-    int file=strtol(buf, 0, 10);
-    close(outputPipe[0]);
-    return file;
-}
 //Go into this function to wait for client to echo back file size
 void awaitEcho(int clientFD, int fileSize){
     char buf[64];
@@ -267,12 +243,14 @@ int main(){
                             strcat(filename, &buf[4]);
                             printf("Filename is %s\n", filename);
                             int outputFD = open(filename, O_RDWR, 0644);
+                            int fileSize = lseek(outputFD, 0, SEEK_END);
+                            lseek(outputFD, 0, SEEK_SET);
                             if(outputFD<0){
                                 write(conn, "File DNE\n", 10);
                             }else{
                                 write(conn, "Found\n", 7);
                                 sleep(1);
-                                writeFile(conn, outputFD, getFileSize(filename));
+                                writeFile(conn, outputFD, fileSize);
                             }
                         //Client wrote put- Uploads file from their machine to servers ./files directory overriding the file if it already exist
                         }else if((strstr(buf, uploadCmd)!=0)&& bytesIn>4){
