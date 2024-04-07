@@ -14,6 +14,7 @@
 char listCmd[] = {"list"};
 char serverConfirm[] = {"confirmed"};
 char killParent[] = {"q!"};
+char killSession[] = {"q"};
 char getCmd[] = {"get"};
 char uploadCmd[] = {"put"};
 char found[] = {"Found\n"};
@@ -202,6 +203,11 @@ int main(int argc, char *argv[]){
                     }
                 }else if((strstr(buf, killParent)!=0)&& bytesIn>2){
                     write(1, "Closing TCP Server and this client process\n",44);
+                    write(sock, &buf, bytesIn);
+                    close(sock);
+                    exit(0);
+                }else if((strstr(buf, killSession)!=0)&& bytesIn>1){
+                    write(1, "Closing session\n", 17);
                     write(sock, &buf, bytesIn);
                     close(sock);
                     exit(0);
