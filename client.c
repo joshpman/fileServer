@@ -21,9 +21,11 @@ char found[] = {"Found\n"};
 //Gets size of file from server, parses it, and returns the value
 int recieveSize(int socketFD){
     char buf[64];
+    memset(buf, 0, 64);
     ssize_t bytesIn = read(socketFD, buf, 64);
     int endDigits = strtol(&buf[0], 0, 0);
     char digitCounter[endDigits+1];
+    memset(digitCounter, 0, endDigits+1);
     for(int i = 5; i<bytesIn; i++){
         digitCounter[i-5] = buf[i];
     }
