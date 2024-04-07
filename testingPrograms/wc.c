@@ -27,6 +27,9 @@ int main(int argc, char *argv[]){
     buf[bytesIn-strlen(argv[1]) -1] = '\0';
     int file=strtol(buf, 0, 10);
     printf("filesize is %d\n", file);
+    int fd = open(argv[1], O_RDONLY);
+    int size = lseek(fd, 0,SEEK_END);
+    printf("Lseek size is %d\n", size);
     close(outputPipe[0]);
 
 }
