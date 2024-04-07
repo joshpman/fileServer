@@ -17,6 +17,18 @@ char killParent[] = {"q!"};
 char getCmd[] = {"get"};
 char uploadCmd[] = {"put"};
 char found[] = {"Found\n"};
+int recieveSize(int socketFD){
+    char buf[64];
+    ssize_t bytesIn = read(socketFD, buf, 64);
+    int endDigits = strtol(&buf[0], 0, 0);
+    char digitCounter[endDigits+1];
+    for(int i = 5; i<bytesIn; i++){
+        digitCounter[i-5] = buf[i];
+    }
+    int totalDigits = strtol(digitCounter, 0, 0);
+    printf("Total Digits is %d\n", totalDigits);
+    return totalDigits; 
+}
 void awaitEcho(int serverFD, int fileSize){
     char buf[64];
     while(1){
@@ -67,20 +79,24 @@ void readInFile(int socket, char* filename){
     char verifyFind();
     char buf[1024];
     char finder[7];
+    int filesize;
     memset(finder, 0, 7);
     read(socket, finder, 7);
     if(strcmp(finder, found)==0){
+        filesize = recieveSize(socket);
+        char echo[getDigits(filesize)];
+        sprintf(echo, "%d", filesize);
+        write(socket, echo, strlen(echo));
         int outputFD = open(filename, O_CREAT | O_RDWR | O_TRUNC, 0644);
         while(1){
             memset(buf, 0, 1024);
             ssize_t bytesIn = read(socket, buf, 1024);
-            if(bytesIn==0){
+            filesize-=bytesIn;
+            write(outputFD, buf, bytesIn);
+            if(filesize==0){
                 close(outputFD);
-                write(1, "Finished writing file, closing socket\n", 39);
-                close(socket);
-                exit(0);
-            }else{
-                write(outputFD, buf, bytesIn);
+                write(1, "Finished writing file\n", 23);
+                break;
             }
         }
     }else{

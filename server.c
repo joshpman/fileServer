@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <sys/select.h>
+#include <sys/wait.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -21,6 +22,42 @@ char uploadCmd[] = {"put"};
 char killParent[] = {"q!"};
 volatile sig_atomic_t running;
 static int listener;
+int getFileSize(char *filename){
+    int outputPipe[2];
+    pipe(outputPipe);
+    int preserveStdout = dup(1);
+    printf("Strlen for filename is %ld\n", strlen(filename));
+    char *listArgs[] = {"wc", "-c", filename, NULL};
+    if(fork()==0){
+        close(outputPipe[0]);
+        dup2(outputPipe[1], 1);
+        execvp("wc", listArgs);
+    }
+    close(outputPipe[1]);
+    dup2(preserveStdout, 1);
+    wait(NULL);
+    char buf[64];
+    memset(buf, 0, 64);
+    ssize_t bytesIn = read(outputPipe[0], buf, 64);
+    //Null terminator the buffer before wc states the filename so we can just read the char count
+    buf[bytesIn-strlen(filename) -1] = '\0';
+    int file=strtol(buf, 0, 10);
+    printf("filesize is %d\n", file);
+    close(outputPipe[0]);
+    return file;
+}
+void awaitEcho(int clientFD, int fileSize){
+    char buf[64];
+    while(1){
+        memset(buf, 0, 64);
+        ssize_t bytesIn = read(clientFD, buf, 64);
+        printf("client echo'd %s\n", buf);
+        int intVal = strtol(buf, 0, 0);
+        if(intVal == fileSize){
+            break;
+        }
+    }
+}
 int getDigits(int number){
     if (number < 10) return 1;
     if (number < 100) return 2;
@@ -47,16 +84,21 @@ void closeOut(){
     close(listener);
     exit(0);
 }
-void writeFile(int socket, int fileFD){
+void writeFile(int socket, int fileFD, int fileSize){
+    int digits = getDigits(fileSize);
+    //Need space for the digit counter-- 1 digit -- then the word file-- then the actual fileSize + 1 for null terminator
+    char filesizeEncoding[strlen("file") + digits + 2];
+    sprintf(filesizeEncoding, "%dfile%d", digits, fileSize);
+    write(socket, filesizeEncoding, strlen(filesizeEncoding));
+    awaitEcho(socket, fileSize);
     char buf[1024];
     while(1){
         memset(buf, 0, 1024);
         ssize_t bytesIn = read(fileFD, buf, 1024);
         if(bytesIn==0){
             close(fileFD);
-            write(1, "Finished writing file, closing socket\n", 39);
-            close(socket);
-            exit(0);
+            write(1, "Finished writing file\n", 23);
+            break;
         }else{
             write(socket, buf, bytesIn);
         }
@@ -174,6 +216,10 @@ int main(){
                             if(bytesIn> 0 && strcmp(passwordBuff, password)==0){
                                 enteredPassword = 1;
                                 write(conn, "Correct Password!\n", 19);
+                                //Clearing out socket so that any password related entries arent caught in command handling
+                                memset(passwordBuff, 0, 9);
+                                read(conn, passwordBuff, 9);
+                                break;
                             }else{
                                 write(conn, "Incorrect Password!\n", 21);
                             }
@@ -210,7 +256,7 @@ int main(){
                             }else{
                                 write(conn, "Found\n", 7);
                                 sleep(1);
-                                writeFile(conn, outputFD);
+                                writeFile(conn, outputFD, getFileSize(filename));
                             }
                         }else if((strstr(buf, uploadCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote put\n", 18);

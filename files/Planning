@@ -1,0 +1,15 @@
+How to close out files from get/put without closing socket?
+    1. Send length of file to recieving end
+        a. wc -c 'filename'
+        b. remove length of filename from end of that wc result and that will be the file size\
+    
+    How do I encode the filesize send so the server knows when it stops?
+        After parent reads in put it know a file will be sent
+        Client sends:
+        [filesize # of chars]file[filesize]
+        Parents first read after put should be to 64 byte buffer
+        Read in until it finds file, copy from bytesIn-filesize # of chars to bytesIn into a buffer, then strtol that buffer to get filesize
+        Echo back to client filesize, once client receives this echo it can start sending
+    2. Await recieving end to echo back length to sender
+    3. Send all bytes then just return to main readin logic instead of exitting
+    4. On recieving end, have a bytesToRead counter that we decrement by bytesIn every read, once it hits 0, close file and return
