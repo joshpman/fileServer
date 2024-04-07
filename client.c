@@ -5,16 +5,64 @@
 #include <sys/un.h>
 #include <sys/types.h>
 #include <sys/select.h>
+#include <sys/wait.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <netdb.h>
 #include <fcntl.h>
 char listCmd[] = {"list"};
+char serverConfirm[] = {"confirmed"};
 char killParent[] = {"q!"};
 char getCmd[] = {"get"};
 char uploadCmd[] = {"put"};
 char found[] = {"Found\n"};
+void awaitEcho(int serverFD, int fileSize){
+    char buf[64];
+    while(1){
+        memset(buf, 0, 64);
+        ssize_t bytesIn = read(serverFD, buf, 64);
+        printf("Server echo'd %s\n", buf);
+        int intVal = strtol(buf, 0, 0);
+        if(intVal == fileSize){
+            break;
+        }
+    }
+}
+int getDigits(int number){
+    if (number < 10) return 1;
+    if (number < 100) return 2;
+    if (number < 1000) return 3;
+    if (number < 10000) return 4;
+    if (number < 100000) return 5;
+    if (number < 1000000) return 6;
+    if (number < 10000000) return 7;
+    return 0;
+}
+int getFileSize(char *filename){
+    int outputPipe[2];
+    pipe(outputPipe);
+    int preserveStdout = dup(1);
+    printf("Strlen for filename is %ld\n", strlen(filename));
+    char *listArgs[] = {"wc", "-c", filename, NULL};
+    if(fork()==0){
+        close(outputPipe[0]);
+        dup2(outputPipe[1], 1);
+        execvp("wc", listArgs);
+    }
+    close(outputPipe[1]);
+    dup2(preserveStdout, 1);
+    wait(NULL);
+    char buf[64];
+    memset(buf, 0, 64);
+    ssize_t bytesIn = read(outputPipe[0], buf, 64);
+    //Null terminator the buffer before wc states the filename so we can just read the char count
+    buf[bytesIn-strlen(filename) -1] = '\0';
+    int file=strtol(buf, 0, 10);
+    printf("filesize is %d\n", file);
+    close(outputPipe[0]);
+    return file;
+}
 void readInFile(int socket, char* filename){
     char verifyFind();
     char buf[1024];
@@ -39,15 +87,21 @@ void readInFile(int socket, char* filename){
         write(2, "Invalid file name!\n", 20);
     }
 }
-void sendFile(int socket, int fileFD){
+void sendFile(int socket, int fileFD, int fileSize){
+    //Get file size, send to parent, then await confirm before sending
+    int digits = getDigits(fileSize);
+    //Need space for the digit counter-- 1 digit -- then the word file-- then the actual fileSize + 1 for null terminator
+    char filesizeEncoding[strlen("file") + digits + 2];
+    sprintf(filesizeEncoding, "%dfile%d", digits, fileSize);
+    write(socket, filesizeEncoding, strlen(filesizeEncoding));
+    awaitEcho(socket, fileSize);
     char buf[1024];
     while(1){
         memset(buf, 0, 1024);
         ssize_t bytesIn = read(fileFD, buf, 1024);
         if(bytesIn==0){
-            close(socket);
             close(fileFD);
-            exit(0);
+            break;
         }else{
             write(socket, buf, bytesIn);
         }
@@ -120,6 +174,7 @@ int main(int argc, char *argv[]){
                     char filename[bytesIn-3];
                     buf[bytesIn-1] = '\0';
                     strcpy(filename, &buf[4]);
+                    int fileSize = getFileSize(filename);
                     int fd = open(filename, O_RDONLY);
                     if(fd<0){
                         printf("Filename is %s\n", filename);
@@ -127,7 +182,7 @@ int main(int argc, char *argv[]){
                     }else{
                         write(sock, &buf, bytesIn);
                         sleep(1);
-                        sendFile(sock, fd);
+                        sendFile(sock, fd, fileSize);
                     }
                 }else if((strstr(buf, killParent)!=0)&& bytesIn>2){
                     write(1, "Closing TCP Server and this client process\n",44);

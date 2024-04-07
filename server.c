@@ -21,6 +21,28 @@ char uploadCmd[] = {"put"};
 char killParent[] = {"q!"};
 volatile sig_atomic_t running;
 static int listener;
+int getDigits(int number){
+    if (number < 10) return 1;
+    if (number < 100) return 2;
+    if (number < 1000) return 3;
+    if (number < 10000) return 4;
+    if (number < 100000) return 5;
+    if (number < 1000000) return 6;
+    if (number < 10000000) return 7;
+    return 0;
+}
+int recieveSize(int socketFD){
+    char buf[64];
+    ssize_t bytesIn = read(socketFD, buf, 64);
+    int endDigits = strtol(&buf[0], 0, 0);
+    char digitCounter[endDigits+1];
+    for(int i = 5; i<bytesIn; i++){
+        digitCounter[i-5] = buf[i];
+    }
+    int totalDigits = strtol(digitCounter, 0, 0);
+    printf("Total Digits is %d\n", totalDigits);
+    return totalDigits; 
+}
 void closeOut(){
     close(listener);
     exit(0);
@@ -42,6 +64,10 @@ void writeFile(int socket, int fileFD){
 }
 void readInFile(int fd, int outputFD){
     char buf[1024];
+    int fileSize = recieveSize(fd);
+    char echo[getDigits(fileSize)+1];
+    sprintf(echo, "%d", fileSize);
+    write(fd, echo, strlen(echo));
     while(1){
         fd_set readIn;
         FD_ZERO(&readIn);
@@ -50,13 +76,13 @@ void readInFile(int fd, int outputFD){
         memset(buf, 0, 1024);
         if(FD_ISSET(fd, &readIn)){
             ssize_t bytesIn = read(fd, buf, 1024);
-            if(bytesIn==0){
-                write(1, "Finished reading in file, closing socket\n", 42);
-                close(outputFD);
-                close(fd);
-                exit(0);
-            }
+            fileSize-=bytesIn;
             write(outputFD, buf, bytesIn);
+            if(fileSize==0){
+                write(1, "Finished reading in file\n", 26);
+                close(outputFD);
+                break;
+            }
         }
     }
 }
