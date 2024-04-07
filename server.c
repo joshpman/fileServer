@@ -1,19 +1,19 @@
-#include <sys/socket.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
-#include <sys/un.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <stdlib.h>
-#include <sys/select.h>
-#include <sys/wait.h>
-#include <dirent.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
+#include <dirent.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <sys/types.h>
 char password[] = {"password"};
 char listCmd[] = {"list"};
 char *listArgs[] = {"ls", "-la", "./files", NULL};
@@ -22,12 +22,18 @@ char uploadCmd[] = {"put"};
 char killParent[] = {"q!"};
 volatile sig_atomic_t running;
 static int listener;
+//Signal handler for SIGUSR1 that closes out listener process
+void closeOut(){
+    close(listener);
+    exit(0);
+}
+//Execs wc -c on the designated file to figure out length to send to client
 int getFileSize(char *filename){
     int outputPipe[2];
     pipe(outputPipe);
     int preserveStdout = dup(1);
-    printf("Strlen for filename is %ld\n", strlen(filename));
     char *listArgs[] = {"wc", "-c", filename, NULL};
+    //Fork into child to exec and pipe the result of wc -c
     if(fork()==0){
         close(outputPipe[0]);
         dup2(outputPipe[1], 1);
@@ -42,15 +48,15 @@ int getFileSize(char *filename){
     //Null terminator the buffer before wc states the filename so we can just read the char count
     buf[bytesIn-strlen(filename) -1] = '\0';
     int file=strtol(buf, 0, 10);
-    printf("filesize is %d\n", file);
     close(outputPipe[0]);
     return file;
 }
+//Go into this function to wait for client to echo back file size
 void awaitEcho(int clientFD, int fileSize){
     char buf[64];
     while(1){
         memset(buf, 0, 64);
-        ssize_t bytesIn = read(clientFD, buf, 64);
+        read(clientFD, buf, 64);
         printf("client echo'd %s\n", buf);
         int intVal = strtol(buf, 0, 0);
         if(intVal == fileSize){
@@ -58,6 +64,7 @@ void awaitEcho(int clientFD, int fileSize){
         }
     }
 }
+//Returns digits in numbers-- looks messy but it's faster than using num/10 recursively
 int getDigits(int number){
     if (number < 10) return 1;
     if (number < 100) return 2;
@@ -68,6 +75,7 @@ int getDigits(int number){
     if (number < 10000000) return 7;
     return 0;
 }
+//Gets size of file from client, parses it, and returns the value
 int recieveSize(int socketFD){
     char buf[64];
     ssize_t bytesIn = read(socketFD, buf, 64);
@@ -80,10 +88,7 @@ int recieveSize(int socketFD){
     printf("Total Digits is %d\n", totalDigits);
     return totalDigits; 
 }
-void closeOut(){
-    close(listener);
-    exit(0);
-}
+//Sends length encoding to client, awaits response, then writes out requested file
 void writeFile(int socket, int fileFD, int fileSize){
     int digits = getDigits(fileSize);
     //Need space for the digit counter-- 1 digit -- then the word file-- then the actual fileSize + 1 for null terminator
@@ -104,6 +109,7 @@ void writeFile(int socket, int fileFD, int fileSize){
         }
     }
 }
+//Readings in file from client
 void readInFile(int fd, int outputFD){
     char buf[1024];
     int fileSize = recieveSize(fd);
@@ -128,6 +134,7 @@ void readInFile(int fd, int outputFD){
         }
     }
 }
+//List files-- Just execs ls ./files in subprocess and pipes the results to client(./files in the 'working directory' since theres no directory navigation)
 void listFiles(int writeFD){
     int outputFD[2];
     pipe(outputFD);
@@ -158,6 +165,7 @@ void listFiles(int writeFD){
         }
     }
 }
+//Prints information about client- Only for testing, does not add functionality
 void printsin(s_in, s1, s2)
 struct sockaddr_in *s_in; char *s1, *s2;
 {
@@ -165,10 +173,12 @@ struct sockaddr_in *s_in; char *s1, *s2;
     printf("(%s, %d)\n", inet_ntoa(s_in->sin_addr) , s_in->sin_port);
 }
 int main(){
+    //Setting up signal handler + running value which signal handler uses to end the listener
     running = 1;
     signal(SIGUSR1, closeOut);
     int enteredPassword = 0;
     int conn, length;
+    //Setting up socket as AF_INET and SOCK_STREAM then binding it to a wildcard IP and Port in network byte ordering
     struct sockaddr_in s1, s2;
     listener = socket(AF_INET, SOCK_STREAM, 0);
     memset(&s1, 0, sizeof(s1));
@@ -178,9 +188,11 @@ int main(){
     length = sizeof(s1);
     bind(listener, (struct sockaddr*) &s1, (socklen_t) length);
     getsockname(listener, (struct sockaddr*) &s1, (socklen_t *) &length);
+    //Prints server information
     printf("RSTREAM: assigned port number %d and ip %s\n", ntohs(s1.sin_port), inet_ntoa(s1.sin_addr));
     char buf[256];
     char passwordBuff[9];
+    //Opening ./files directory if it doesn't already exist
     struct stat st ={0};
     if(stat("./files", &st)==-1){
         mkdir("./files", 0700);
@@ -203,7 +215,8 @@ int main(){
                     FD_ZERO(&watchFD);
                     FD_SET(conn, &watchFD);
                     struct timeval timeout;
-                    timeout.tv_sec = 60;  
+                    timeout.tv_sec = 60;
+                    //Password checking, can turn off by changing to while(0)  
                     while(enteredPassword==0){
                         int nfds = conn + 1;
                         fd_set watchFD;
@@ -225,6 +238,7 @@ int main(){
                             }
                         }
                     }
+                    //Checking if client is active
                     int selectVal = select(nfds, &watchFD, 0, 0, &timeout);
                     if(selectVal==0){
                         write(conn, "Inactive client, timing out\n",29);
@@ -239,11 +253,13 @@ int main(){
                             close(conn);
                             exit(0);
                         }
-                        //Command check
+                        //Command checking
+                        //Client wrote list- list off files in ./files directory in ls -la format
                         if((strstr(buf, listCmd)!=0)&& bytesIn==5){
                             write(1, "Client wrote list\n", 19);
                             listFiles(conn);
                             write(conn, "\n", 2);
+                        //Client wrote get- Downloads requested file to their machine in their working directory                            
                         }else if((strstr(buf, getCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote get\n", 18);
                             char filename[bytesIn-4 + strlen("./files/") + 1];
@@ -258,6 +274,7 @@ int main(){
                                 sleep(1);
                                 writeFile(conn, outputFD, getFileSize(filename));
                             }
+                        //Client wrote put- Uploads file from their machine to servers ./files directory overriding the file if it already exist
                         }else if((strstr(buf, uploadCmd)!=0)&& bytesIn>4){
                             write(1, "Client wrote put\n", 18);
                             char output[bytesIn-4 + strlen("./files/") + 1];
@@ -265,11 +282,13 @@ int main(){
                             strcat(output, &buf[4]);
                             int outputFD = open(output, O_CREAT | O_RDWR | O_TRUNC, 0644);
                             readInFile(conn, outputFD);
+                        //Client wrote q!- Kills listener process and child which ends the TCP Server process entirely
                         }else if((strstr(buf, killParent)!=0)&& bytesIn>2){
                             write(1, "Closing parent process and current socket\n", 43);
                             close(conn);
                             kill(getppid(), SIGUSR1);
                             exit(0);
+                        //Else just means it is not a command that is recognized so server writes 'Unknown command'
                         }else{
                             write(conn, "Unknown command\n", 17);
                         }
@@ -277,9 +296,11 @@ int main(){
                 }
                 
             }
+            //Closing accepted client FD in listener so we can accept more clients-- Accept only has a 1 spot queue so this is needed
             close(conn);
         }
     }
+    //Program should never get here as its killed by a client command but if it does somehow this is just to cleanup listening socket + close out nicely
     close(listener);
     exit(0);
 }

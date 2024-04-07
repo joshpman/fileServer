@@ -11,6 +11,9 @@
         "fcntl.h": "c",
         "strings.h": "c",
         "unistd.h": "c",
-        "wait.h": "c"
+        "wait.h": "c",
+        "inet.h": "c",
+        "un.h": "c",
+        "stat.h": "c"
     }
 }
