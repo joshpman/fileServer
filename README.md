@@ -1,4 +1,4 @@
-C TCP/IP Server and Client for File Transfer
+C TCP/IP Server and Client for File Transfer for Unix Based Systems
 
 Works inside of the Servers current directory in the ./files subdirectory -- Will create this directory if it doesn't exist
 
