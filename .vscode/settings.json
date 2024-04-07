@@ -8,6 +8,9 @@
         "dirent.h": "c",
         "socket.h": "c",
         "stdio.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "strings.h": "c",
+        "unistd.h": "c",
+        "wait.h": "c"
     }
 }
