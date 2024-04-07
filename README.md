@@ -9,4 +9,4 @@ list- List off files in the servers ./files directory \
 put- Uploads a file from the clients current directory to the servers ./files directory, client can also use absolute file paths to reference files outside of working directory \
 get- Downloads a file from the servers ./files directory to the clients current directory, will notify client if file does not exist \
 q- Closes out client session but leaves server listener running \
-q!- Closes out client session and closes server listener \
+q!- Closes out client session and closes server listener
