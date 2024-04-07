@@ -191,7 +191,7 @@ int main(){
     //Prints server information
     printf("RSTREAM: assigned port number %d and ip %s\n", ntohs(s1.sin_port), inet_ntoa(s1.sin_addr));
     char buf[256];
-    char passwordBuff[9];
+    char passwordBuff[strlen(password)+1];
     //Opening ./files directory if it doesn't already exist
     struct stat st ={0};
     if(stat("./files", &st)==-1){
@@ -223,15 +223,15 @@ int main(){
                         FD_ZERO(&watchFD);
                         FD_SET(conn, &watchFD);
                         select(nfds, &watchFD, 0, 0, 0);
-                        memset(passwordBuff, 0, 9);
+                        memset(passwordBuff, 0, (strlen(password)+1));
                         if(FD_ISSET(conn, &watchFD)){
-                            ssize_t bytesIn = read(conn, passwordBuff, 8);
+                            ssize_t bytesIn = read(conn, passwordBuff, strlen(password));
                             if(bytesIn> 0 && strcmp(passwordBuff, password)==0){
                                 enteredPassword = 1;
                                 write(conn, "Correct Password!\n", 19);
                                 //Clearing out socket so that any password related entries arent caught in command handling
-                                memset(passwordBuff, 0, 9);
-                                read(conn, passwordBuff, 9);
+                                memset(passwordBuff, 0,(strlen(password)+1));
+                                read(conn, passwordBuff, (strlen(password)+1));
                                 break;
                             }else{
                                 write(conn, "Incorrect Password!\n", 21);
