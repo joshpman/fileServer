@@ -25,7 +25,7 @@ static int listener;
 //Signal handler for SIGUSR1 that closes out listener process
 void closeOut(){
     close(listener);
-    exit(0);
+    running = 0;
 }
 //Go into this function to wait for client to echo back file size
 void awaitEcho(int clientFD, int fileSize){
@@ -40,7 +40,7 @@ void awaitEcho(int clientFD, int fileSize){
         }
     }
 }
-//Returns digits in numbers-- looks messy but it's faster than using num/10 recursively
+//Returns digits in numbers-- looks messy but it's faster than using num/10 recursively- limited to single digit values for now but that still allows up to 1 billion bytes
 int getDigits(int number){
     if (number < 10) return 1;
     if (number < 100) return 2;
@@ -49,6 +49,8 @@ int getDigits(int number){
     if (number < 100000) return 5;
     if (number < 1000000) return 6;
     if (number < 10000000) return 7;
+    if (number < 100000000) return 8;
+    if (number < 1000000000) return 9;
     return 0;
 }
 //Gets size of file from client, parses it, and returns the value
@@ -150,6 +152,11 @@ struct sockaddr_in *s_in; char *s1, *s2;
 }
 int main(){
     //Setting up signal handler + running value which signal handler uses to end the listener
+    int selectVal;
+    fd_set watchFD;
+    FD_ZERO(&watchFD);
+    struct timeval timeout = {0,0};
+    int nfds = 0;
     running = 1;
     signal(SIGUSR1, closeOut);
     int enteredPassword = 0;
@@ -168,6 +175,7 @@ int main(){
     printf("RSTREAM: assigned port number %d and ip %s\n", ntohs(s1.sin_port), inet_ntoa(s1.sin_addr));
     char buf[256];
     char passwordBuff[strlen(password)+1];
+    
     //Opening ./files directory if it doesn't already exist
     struct stat st ={0};
     if(stat("./files", &st)==-1){
@@ -186,16 +194,14 @@ int main(){
                 write(conn, "Please enter password:\n", 24);
                 while(1){
                     memset(buf, 0, 256);
-                    int nfds = conn + 1;
-                    fd_set watchFD;
+                    nfds = conn + 1;
                     FD_ZERO(&watchFD);
                     FD_SET(conn, &watchFD);
-                    struct timeval timeout;
+
                     timeout.tv_sec = 60;
                     //Password checking, can turn off by changing to while(0)  
                     while(enteredPassword==0){
-                        int nfds = conn + 1;
-                        fd_set watchFD;
+                        nfds = conn + 1;
                         FD_ZERO(&watchFD);
                         FD_SET(conn, &watchFD);
                         select(nfds, &watchFD, 0, 0, 0);
@@ -215,7 +221,7 @@ int main(){
                         }
                     }
                     //Checking if client is active
-                    int selectVal = select(nfds, &watchFD, 0, 0, &timeout);
+                    selectVal = select(nfds, &watchFD, 0, 0, &timeout);
                     if(selectVal==0){
                         write(conn, "Inactive client, timing out\n",29);
                         close(conn);
@@ -278,7 +284,6 @@ int main(){
             close(conn);
         }
     }
-    //Program should never get here as its killed by a client command but if it does somehow this is just to cleanup listening socket + close out nicely
-    close(listener);
+    //Program should get here if a client sends the kill signal and the signal handler ends the main logic loop, at this point just exiting is all thats left to do
     exit(0);
 }
