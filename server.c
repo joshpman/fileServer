@@ -76,10 +76,10 @@ void writeFile(int socket, int fileFD, int fileSize){
     sprintf(filesizeEncoding, "%dfile%d", digits, fileSize);
     write(socket, filesizeEncoding, strlen(filesizeEncoding));
     awaitEcho(socket, fileSize);
-    char buf[1024];
+    char buf[32768];
     while(1){
         memset(buf, 0, 1024);
-        ssize_t bytesIn = read(fileFD, buf, 1024);
+        ssize_t bytesIn = read(fileFD, buf, 32768);
         if(bytesIn==0){
             close(fileFD);
             write(1, "Finished writing file\n", 23);
@@ -91,7 +91,7 @@ void writeFile(int socket, int fileFD, int fileSize){
 }
 //Readings in file from client
 void readInFile(int fd, int outputFD){
-    char buf[1024];
+    char buf[32768];
     int fileSize = recieveSize(fd);
     char echo[getDigits(fileSize)+1];
     sprintf(echo, "%d", fileSize);
@@ -101,9 +101,9 @@ void readInFile(int fd, int outputFD){
         FD_ZERO(&readIn);
         FD_SET(fd, &readIn);
         select(fd+1, &readIn, 0,0,0);
-        memset(buf, 0, 1024);
+        memset(buf, 0, 32768);
         if(FD_ISSET(fd, &readIn)){
-            ssize_t bytesIn = read(fd, buf, 1024);
+            ssize_t bytesIn = read(fd, buf, 32768);
             fileSize-=bytesIn;
             write(outputFD, buf, bytesIn);
             if(fileSize==0){

@@ -58,7 +58,7 @@ int getDigits(int number){
 }
 //Readings in file from Server
 void readInFile(int socket, char* filename){
-    char buf[1024];
+    char buf[32768];
     char finder[7];
     int filesize;
     memset(finder, 0, 7);
@@ -72,8 +72,8 @@ void readInFile(int socket, char* filename){
         write(socket, echo, strlen(echo));
         int outputFD = open(filename, O_CREAT | O_RDWR | O_TRUNC, 0644);
         while(1){
-            memset(buf, 0, 1024);
-            ssize_t bytesIn = read(socket, buf, 1024);
+            memset(buf, 0, 32768);
+            ssize_t bytesIn = read(socket, buf, 32768);
             filesize-=bytesIn;
             write(outputFD, buf, bytesIn);
             if(filesize==0){
@@ -95,10 +95,10 @@ void sendFile(int socket, int fileFD, int fileSize){
     sprintf(filesizeEncoding, "%dfile%d", digits, fileSize);
     write(socket, filesizeEncoding, strlen(filesizeEncoding));
     awaitEcho(socket, fileSize);
-    char buf[1024];
+    char buf[32768];
     while(1){
-        memset(buf, 0, 1024);
-        ssize_t bytesIn = read(fileFD, buf, 1024);
+        memset(buf, 0, 32768);
+        ssize_t bytesIn = read(fileFD, buf, 32768);
         if(bytesIn==0){
             close(fileFD);
             break;
